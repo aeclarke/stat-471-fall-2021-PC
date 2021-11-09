@@ -74,7 +74,8 @@ cp_table %>%
 Audience participation: How many terminal nodes would we choose based on the one-standard-error rule? 
 
 Unfortunately, we don't have a convenient lambda.1se field of the output to directly extract the optimal complexity parameter based on the one standard error rule. Nevertheless, we can find it pretty simply using `dplyr`:
-```{r}
+
+```{r optimal-tree}
 optimal_tree_info = cp_table %>% 
   filter(xerror - xstd < min(xerror)) %>% 
   arrange(nsplit) %>% 
