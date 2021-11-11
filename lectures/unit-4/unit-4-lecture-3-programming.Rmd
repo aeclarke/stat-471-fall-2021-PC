@@ -11,7 +11,7 @@ Today, we will learn how to train and tune random forests using the `randomFores
 
 First, let's load some libraries:
 ```{r, message = FALSE}
-library(randomForest)       # install.packages("randomForest")
+library(randomForest)       
 library(tidyverse)
 ```
 
@@ -103,6 +103,9 @@ tibble(m = mvalues, oob_err = oob_errors) %>%
   geom_line() + geom_point() + 
   scale_x_continuous(breaks = mvalues) +
   theme_bw()
+
+rf_fit = randomForest(Salary ~ ., mtry = 1, data = Hitters_train)
+rf_fit$mse
 ```
 
 ## Variable importance

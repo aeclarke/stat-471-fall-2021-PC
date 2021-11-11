@@ -107,12 +107,14 @@ The data contain a test set indicator, which we filter on to create a train-test
 # extract training data
 spam_train = spam_data %>% 
   filter(test == 0) %>% 
-  select(-test)
+  select(-test) %>% 
+  mutate(spam = as.factor(spam)) #change spam to factor
 
 # extract test data
 spam_test = spam_data %>% 
   filter(test == 1) %>% 
-  select(-test)
+  select(-test)  %>% 
+  mutate(spam = as.factor(spam)) #change spam to factor
 ```
 
 # Exploratory Data Analysis (18 points for correctness; 2 points for presentation)
@@ -315,12 +317,20 @@ Note: from this point onward, your code will be somewhat time-consuming. It is r
 ## Running a random forest with default parameters (4 points)
 
 i. (2 points) Train a random forest with default settings on `spam_train`. What value of `mtry` was used?
-```{r}
+```{r rf-fit, cache=TRUE}
 set.seed(1) # for reproducibility (DO NOT CHANGE)
-setwd("C:/Users/ashle/OneDrive - PennO365/STAT471/stat-471-fall-2021")
+rf_fit = randomForest(spam ~ ., data = spam_train)
 ```
+**The value of 'mtry' is set to the number of columns divided by 3 rounded down. Since there are 57 columns, not including the spam column, 'mtry' is equal to 19**
 
 ii. (2 points) Plot the OOB error as a function of the number of trees. Roughly for what number of trees does the OOB error stabilize?
+
+```{r OOB-error, fig.width = 5, fig.height = 3, out.width = "80%", fig.cap = "OBB error as a function of the number of trees", fig.align='center'}
+tibble(oob_error = rf_fit$err.rate[,"OOB"],
+       trees = 1:500) %>%
+  ggplot(aes(x = trees, y = oob_error)) + geom_line() + theme_bw()
+```
+**OOB error roughly stabilizes at 300 trees**
 
 ## Computational cost of random forests (7 points)
 
@@ -332,7 +342,16 @@ Recall that the purity-based variable importance is calculated automatically but
 
 i. (1 point) How long does it take to train the random forest with default parameter settings, with `importance = FALSE`? You can use the command `system.time(randomForest(...))`; see `?system.time` for more details.
 
+```{r time-importance-false, cache=TRUE}
+system.time(randomForest(spam ~ ., data = spam_train))
+```
+**It takes around 4 seconds to train the random forest with default parameter settings**
+
 ii. (1 point) How long does it take to train the random forest with default parameter settings except `importance = TRUE`? How many times faster is the computation when `importance = FALSE`? 
+```{r time-importance-true, cache=TRUE}
+time_import_true = system.time(randomForest(spam ~ ., data = spam_train, importance = TRUE))
+```
+**It takes around 8 seconds to train the random forest when `importance = TRUE`, which is double the time it took when `importance = FALSE`. Thus, setting computation equal to FALSE is twice as fast as setting it equal to TRUE **
 
 ### Dependence on the number of trees
 
@@ -340,26 +359,78 @@ Another setting influencing the computational cost of running `randomForest` is 
 
 i. (3 points) Train five random forests, with `ntree = 100,200,300,400,500` (and `importance = FALSE`). Record the time it takes to train each one, and plot the time against `ntree`. You can programmatically extract the elapsed time by running `system.time(...)["elapsed"]`
 
+```{r ntree-time, cache=TRUE}
+num_tree = c(100, 200, 300, 400, 500)
+times = c(0, 0, 0, 0, 0)
+for(i in 1:5){
+  times[i] = system.time(randomForest(spam ~ ., data = spam_train, 
+                                      ntree=num_tree[i]))["elapsed"]
+} 
+tibble('Number of Trees' = num_tree, 'Run Time' = times) %>%
+  kable(format = "latex", row.names = NA,
+       booktabs = TRUE, 
+       digits = 3, 
+       caption = "Elapsed Run Time by Number of Trees Trained On") %>%
+ kable_styling(position = "center")
+
+```
 
 ii. (2 points) What relationship between runtime and number of trees do you observe? Does it make sense in the context of the training algorithm for random forests? 
+**As the number of trees increases, the runtime increases. This makes sense because it is more computationally intensive to train on a greater number of trees**
 
 ## Tuning the random forest (8 points)
 
 i. (2 points) Since tuning the random forest is somewhat time consuming, we want to be careful about tuning it smartly. To this end, does it make sense to tune the random forest with `importance = FALSE` or `importance = TRUE`? Based on OOB error plot from above, what would be a reasonable number of trees to grow without significantly compromising prediction accuracy? 
+**It makes sense to set `importance = FALSE` because doing so cuts the runtime in half. EXPLAIN WHY IT IS OKAY TO NOT HAVE THIS**
+**Based on the OOB error plot from above, it seeems reasonable to grow 300 trees because this is when OOB error starts to level off.**
 
 ii. (2 points) About how many minutes would it take to train a random forest with 500 trees for every possible value of m? (For the purposes of this question, you may assume for the sake of simplicity that the choice of m does not impact the training time too much.) Suppose you only have enough patience to wait about 15 seconds to tune your random forest, and you use the reduced number of trees from part i. How many values of m can you afford to try? (The answer will vary based on your computer. Some students will find that there is time for only one or a few values; this is ok.)
+**Since there are 57 columns in the data (excluding spam), 'mtry' can range from 1 to 57. Thus, there are 57 possible values of m. To train on every value, it would take 57 x 4 seconds or 228 seconds, which is equal to around 4 minutes**
+**It takes around 2 seconds to train based on 500 trees. Therefore I can afford to try 7 values of m because 2*7 is equal to 14, which is under the 15 second limit.**
 
 iii. (2 points) Tune the random forest based on the choices in parts i and ii (if on your computer you cannot calculate at least five values of m in 15 seconds, please calculate five values of m, even though it will take longer than 15 seconds). Make a plot of OOB error versus m, and identify the best value of m. How does it compare to the default value of m? 
 
+```{r rf-fit-tuned, cache=TRUE}
+# might want to cache this chunk!
+mvalues = seq(1,7, by = 1)
+oob_errors = numeric(length(mvalues))
+ntree = 300
+for(idx in 1:length(mvalues)){
+  m = mvalues[idx]
+  rf_fit = randomForest(spam ~ ., mtry = m, data = spam_train)
+  oob_errors[idx] = rf_fit$err.rate[ntree,"OOB"]
+}
+tibble(m = mvalues, oob_err = oob_errors) %>%
+  ggplot(aes(x = m, y = oob_err)) + 
+  geom_line() + geom_point() + 
+  scale_x_continuous(breaks = mvalues) +
+  theme_bw()
+
+rf_fit_tuned  = randomForest(spam ~ ., ntree= 300, mtry = 3, data = spam_train)
+```
+
 iv. (2 points) Using the optimal value of m selected above, train a random forest on 500 trees just to make sure the OOB error has flattened out. Also switch to `importance = TRUE` so that we can better interpret the random forest ultimately used to make predictions. Plot the OOB error of this random forest as a function of the number of trees and comment on whether the error has flattened out.
 
-```{r, cache = TRUE}
+```{r r-fit-500, cache = TRUE}
 set.seed(1) # for reproducibility (DO NOT CHANGE)
+rf_fit_500 = randomForest(spam ~ ., ntree= 500, mtry = 3, data = spam_train, importance = TRUE)
+tibble(oob_error = rf_fit_500$err.rate[,"OOB"],
+       trees = 1:500) %>%
+  ggplot(aes(x = trees, y = oob_error)) + geom_line() + theme_bw()
 ```
+
+**Error appears to have flattened out at 300 because this is point when OOB error reaches its minimum**
 
 ## Variable importance (6 points)
 
 i. (2 points) Produce the variable importance plot for the random forest trained on the optimal value of m. 
+
+
+We can visualize these importances using the built-in function called `varImpPlot`:
+```{r var-imp-plot, fig.width = 5, fig.height = 3, out.width = "80%", fig.cap = "Variable importance plot for random forest model trained on the optimal value of m", fig.align='center'}
+varImpPlot(rf_fit_tuned)
+```
+
 
 ii. (4 points) In order, what are the top three features by each metric? How many features appear in both lists? Choose one of these top features and comment on why you might expect it to be predictive of spam, including whether you would expect an increased frequency of this feature to indicate a greater or lesser probability of spam. 
 
