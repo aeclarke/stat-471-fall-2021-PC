@@ -240,6 +240,7 @@ irf_data_tidy %>%
 
 - (5 points) Produce a (nice) table of the IRFs with the top 5 `mspb` values; for each IRF print its `facility_name`, `city`, `state`, and `mspb`. What cities (or city) do the two most costly IRFs come from?
 
+
 ```{r top-5-mspb}
 irf_data_tidy %>% 
   select(facility_name, city, state, mspb) %>%

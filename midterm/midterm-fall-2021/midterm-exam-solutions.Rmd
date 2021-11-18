@@ -343,7 +343,7 @@ training_mean_response = mean(covid_train$case_fatality_rate)
 constant_RMSE = sqrt(mean((training_mean_response-covid_test$case_fatality_rate)^2))
 
 # print nice table
-tibble(Ridge = ridge_RMSE, Lasso = lasso_RMSE, `Intercept-only` = constant_RMSE) %>%
+tibble('Decision Tree' =  , Lasso = lasso_RMSE, `Intercept-only` = constant_RMSE) %>%
    kable(format = "latex", row.names = NA,
        booktabs = TRUE, digits = 2,
        caption = "Root-mean-squared prediction errors for lasso, ridge,

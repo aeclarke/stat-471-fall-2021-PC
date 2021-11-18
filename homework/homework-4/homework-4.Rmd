@@ -1,6 +1,6 @@
 ---
 title: 'STAT 471: Homework 4'
-author: 'Name'
+author: 'Ashley Clarke'
 date: 'Due: November 17, 2021 at 11:59pm'
 output:
   bookdown::pdf_document2:
@@ -38,7 +38,7 @@ The collaboration policy is as stated on the Syllabus:
 In accordance with this policy, 
 
 *Please list anyone you discussed this homework with:* 
-- Zach Bradlow, Sarah Hu, Paul Heysch de la Borde
+- Zach Bradlow, Sarah Hu, and Paul Heysch de la Borde
 
 *Please list what external references you consulted (e.g. articles, books, or websites):*
 - https://towardsdatascience.com/understanding-decision-trees-once-and-for-all-2d891b1be579
@@ -107,14 +107,12 @@ The data contain a test set indicator, which we filter on to create a train-test
 # extract training data
 spam_train = spam_data %>% 
   filter(test == 0) %>% 
-  select(-test) %>% 
-  mutate(spam = as.factor(spam)) #change spam to factor
+  select(-test)   
 
 # extract test data
 spam_test = spam_data %>% 
   filter(test == 1) %>% 
-  select(-test)  %>% 
-  mutate(spam = as.factor(spam)) #change spam to factor
+  select(-test)  
 ```
 
 # Exploratory Data Analysis (18 points for correctness; 2 points for presentation)
@@ -134,7 +132,7 @@ frac_spam = spam_train %>%
 **39.7% of training observations are spam**
 
 ii. (2 points) Assuming the test data contain the same class proportions, what would be the misclassification error of a naive classifier that always predicts the majority class?
-**The misclassification error will be 39.7% because the naive classifier will always predict no spam, when 39.7% of emails are actually spam**
+**The misclassification error will be 39.7% because the naive classifier will always predict no spam, when 39.7% of emails are actually spam since no spam is the majority class**
 
 ## Exploring word frequencies (15 points)
 
@@ -146,16 +144,18 @@ Let's first take a look at the average word frequencies across all emails. This 
 
 i. (3 points) Produce a tibble called `avg_word_freq` containing the average frequencies of each word by calling `summarise_at` on `spam_train`. Print this tibble (no need to use kable). (Hint: Check out the documentation for `summarise_at` by typing `?summarise_at`. Specify all columns starting with "word_freq_" via `vars(starts_with("word_freq"))`).
 ```{r avg-word-freq}
-avg_word_freq = spam_train %>% summarise_at(vars(starts_with("word_freq")), funs(mean))
-print((avg_word_freq))
+avg_word_freq = spam_train %>%
+  summarise_at(vars(starts_with("word_freq")), funs(mean))
+print(avg_word_freq)
 ```
 
 ii. (3 points) Create a tibble called `avg_word_freq_long` by calling `pivot_longer` on `avg_word_freq`. The result should have 48 rows and two columns called `word` and `avg_freq`, the former containing each word and the latter containing its average frequency. Print this tibble (no need to use kable). [Hint: Use `cols = everything()` to pivot on all columns and `names_prefix = "word_freq_"` to remove this prefix.]
 
 ```{r avg-word-freq-long}
 avg_word_freq_long = avg_word_freq %>% 
-  pivot_longer(cols = everything(), names_prefix = "word_freq_", names_to = 'word',
-               values_to = 'avg_freq')
+  #assign each word as a column name and frequency as values
+   pivot_longer(cols = everything(), names_prefix = "word_freq_", 
+               names_to = 'word', values_to = 'avg_freq')
 print(avg_word_freq_long)
 ```
 
@@ -165,7 +165,7 @@ iii. (2 points) Produce a histogram of the word frequencies. What are the top th
 # plot histogram of word frequency
 avg_word_freq_long %>%
   ggplot(aes(x = avg_freq)) + 
-  geom_histogram() +
+  geom_histogram(bins = 15, fill = "grey", col = "black") +
   labs(x = "Word Frequency", 
        y = "Number of Words") +
   theme_bw()
@@ -175,6 +175,13 @@ avg_word_freq_long %>%
 top_3_freq = avg_word_freq_long %>%
   arrange(desc(avg_freq)) %>%
   head(3) 
+#print top 3 words
+top_3_freq %>%
+  kable(format = "latex", row.names = NA,
+       booktabs = TRUE, 
+       digits = 3, 
+       caption = "Top 3 Most Frequent Words") %>%
+ kable_styling(position = "center")
 ```
 **The top three most frequent words are "you", "your", and "george". The frequencies are percentages, so their maximum value is 100 rather than 1.** 
 
@@ -190,10 +197,11 @@ iv. (4 points) For each word, compute the difference between its average frequen
 diff_avg_word_freq = spam_train %>% 
   group_by(spam) %>%
   summarise_at(vars(starts_with("word_freq")), funs(mean)) %>%
-  pivot_longer(cols = -c(spam), names_prefix = "word_freq_", names_to = 'word',
-               values_to = 'avg_freq') %>% 
+  pivot_longer(cols = -c(spam), names_prefix = "word_freq_", names_to =
+                 'word', values_to = 'avg_freq') %>% 
   pivot_wider(names_from = spam, values_from = avg_freq) %>%
   rename(not_spam = '0', spam = '1') %>%
+  #calc difference between frequency in spam and not spam
   summarise(word, diff_avg_freq = spam - not_spam)
 
 print(diff_avg_word_freq)
@@ -205,18 +213,41 @@ v. (3 points) Plot a histogram of these word frequency differences. Which three 
 # plot histogram of word frequency
 diff_avg_word_freq  %>%
   ggplot(aes(x = diff_avg_freq)) + 
-  geom_histogram() +
+  geom_histogram(bins = 15, fill = "grey", col = "black") +
   labs(x = "Difference in Average Word Frequency", 
        y = "Number of Words") +
   theme_bw()
 ```
+```{r top-3-overrepresented}
+# find top 3 overrepresented 
+top_3_over = diff_avg_word_freq %>%
+  arrange(desc(diff_avg_freq)) %>%
+  head(3) 
+
+#print top 3 underrepresented words
+top_3_over %>%
+  kable(format = "latex", row.names = NA,
+       booktabs = TRUE, 
+       digits = 3, 
+       caption = "Top 3 Most Overrespresented Words in Spam Emails") %>%
+ kable_styling(position = "center")
+```
+
 ```{r top-3-underrepresented}
 # find top 3 underrepresented 
 top_3_under = diff_avg_word_freq %>%
   arrange(diff_avg_freq) %>%
   head(3) 
+
+#print top 3 underrepresented words
+top_3_under %>%
+  kable(format = "latex", row.names = NA,
+       booktabs = TRUE, 
+       digits = 3, 
+       caption = "Top 3 Most Underrespresented Words in Spam Emails") %>%
+ kable_styling(position = "center")
 ```
-**The top 3 underrepresented words in spam emails are george, hp, and hpl. These words make sense because they are more personalized/ descriptive words**
+**The top 3 overrepresented words in spam emails are "you", "your", and "free" while the top 3 underrepresented words in spam emails are "george", "hp", and "hpl". These words make sense because they are more personalized/ descriptive words, whereas the spam emails have more non-descriptive words**
 
 # Classification trees (20 points for correctness; 5 points presentation)
 
@@ -236,7 +267,7 @@ ii. (2 points) How many splits are there in this tree? How many terminal nodes d
 **There are 7 splits and 8 terminal nodes in the tree**
 
 iii. (5 points) What sequence of splits (specify the feature, the split point, and the direction) leads to the terminal node that has the largest fraction of spam observations? Does this sequence of splits make sense as flagging likely spam emails? What fraction of spam observations does this node have? What fraction of the training observations are in this node? 
-**The highest fraction of spam observations occurs when the frequency of the dollar sign is greater than or equal to 0.058 and the the word frequency of hp is less than 0.41. This sequence of splits makes sense because emails with more dollar signs might indicate that someone is trying to attempt a phishing attack. Also, we know that the word hp is underrepresented in spam emails. 24% of the training observations are in this node**
+**The highest fraction of spam observations occurs when the frequency of the dollar sign is greater than or equal to 0.056 and the the word frequency of hp is less than 0.41. This sequence of splits makes sense because emails with more dollar signs might indicate that someone is trying to attempt a phishing attack. Also, we know that the word hp is underrepresented in spam emails. 24% of the training observations are in this node**
 
 ## Finding a tree of optimal size via pruning and cross-validation (12 points)
 
@@ -245,28 +276,32 @@ Now let's find the optimal tree size.
 ### Fitting a large tree $T_0$ (9 points)
 
 i. (2 points) While we could simply prune back the default tree, there is a possibility the default tree is not large enough. In terms of the bias-variance tradeoff, why would it be a problem if the default tree were not large enough? 
-**It would be a problem if the default tree was not large enough because we might underfit or create an oversimplified tree. While this tree might give us lower variance, it will be more biased since it lacks the tools to fully capture trends in the data. The decrease in variance might not overcome the increase in bias, which increases the error of our model**
+**It would be a problem if the default tree was not large enough because we might underfit or create an oversimplified tree. We know the more terminal nodes(regions) a tree has, the more flexible the tree is, While a smaller tree might give us lower variance, it will be more biased since it lacks the tools to fully capture trends in the data. The decrease in variance might not overcome the increase in bias, which increases the error of our model. Therefore, pruning a tree that is not large enough may not allow us to pick the tree with the lowest error.**
 
 ii. (2 points) First let us fit the deepest possible tree. In class we talked about the arguments `minsplit` and `minbucket` to `rpart.control`. What values of these parameters will lead to the deepest possible tree? There is also a third parameter `cp`. Read about this parameter by typing `?rpart.control`. What value of this parameter will lead to the deepest possible tree?
 
-**'minsplit' is the minimum number of observations that must exist in a node for a split to be attempted. Thus, when 'minsplit' is set to 1 (because there is no reason to split if there are zero observations), the deepest possible tree is created**
+**'minsplit' is the minimum number of observations that must exist in a node for a split to be attempted. Thus, when 'minsplit' is set to 2 (because there is no reason to split if there is not at least one observation on either side of the split). Attempting to split when there are 2 observations left gives us the deepest possible tree**
 
-**'minbucket'is the minimum number of observations in any terminal node. Thus, when "minbucket" is set to 2 (does not make sense that you would split if there are not at least one observation in either side of the split), the deepest tree is created**
+**'minbucket'is the minimum number of observations in any terminal node. Thus, when "minbucket" is set to 1 (a terminal node cannnot have zero observations), the deepest tree is created**
 
 **'cp' is the complexity parameter and is used to control the size of the decision tree and to select the optimal tree size. If the cost of adding another variable to the decision tree from the current node is above the value of cp, then tree building does not continue. We could also say that tree construction does not continue unless it would decrease the overall lack of fit by a factor of cp.Therefore, a cp of 0 will lead to the deepest possible tree**
 
 iii. (1 point) Fit the deepest possible tree $T_0$ based on the `minsplit`, `minbucket`, and `cp` parameters from the previous sub-part. Print the CP table for this tree (using kable).
 
-```{r}
+```{r deep-tree}
 set.seed(1) # for reproducibility (DO NOT CHANGE)
 
 tree_fit_deep = rpart(spam ~ ., 
-                      control = rpart.control(minsplit = 1, minbucket = 2, cp = 0),
+                      control = rpart.control(minsplit = 2, minbucket = 1, cp = 0),
                       method = "class",              # classification
                       parms = list(split = "gini"),  # Gini index for splitting
                       data = spam_train)
 cp_table_deep = printcp(tree_fit_deep) %>% as_tibble()
+```
+
+```{r CP-deepest}
 cp_table_deep %>%
+  tail(1) %>%  #select deepest tree
   kable(format = "latex", row.names = NA,
        booktabs = TRUE, 
        digits = 3, 
@@ -275,7 +310,7 @@ cp_table_deep %>%
 ```
 
 iv. (4 points) How many distinct trees are there in the sequence of trees produced in part iii? How many splits does the biggest tree have? How many average observations per terminal node does it have, and why is it not 1?
-**There are 26 distinct trees. The largest tree has 94 splits.NOT SURE NOT SURE**
+**There are 23 distinct trees. The largest tree has 205 splits.Therefore, there are 206 terminal nodes in this tree and an average of 14.879 observations in each terminal node. The average number of observations per teminal node is not equal to 1 because there are only 57 variables to split on and we cannot have a variable repeat in the tree. Random forest won't use an already used feature to split at further levels in any given branch of the tree.**
 
 ### Tree-pruning and cross-validation (3 points)
 
@@ -303,11 +338,11 @@ optimal_tree_info = cp_table_deep %>%
   head(1)
 terminal_nodes_optimal = optimal_tree_info %>% select(nsplit) %>% pull() + 1
 ```
-**Using the one standard error rule, the tree has 31 terminal nodes, which is higher than than the number of terminal nodes in the default tree above**
+**Using the one standard error rule, the tree has 18 splits and 19 terminal nodes, which is higher than than the number of terminal nodes in the default tree above**
 
 iii. (1 point) Extract this optimal tree into an object called `optimal_tree` which we can use for prediction on the test set (see the last problem in this homework). 
 ```{r optimal-tree}
-optimal_tree = prune(tree = tree_fit, cp = optimal_tree_info$CP)
+optimal_tree = prune(tree = tree_fit_deep, cp = optimal_tree_info$CP)
 ```
 
 # Random forests (25 points for correctness; 5 points for presentation)
@@ -317,11 +352,12 @@ Note: from this point onward, your code will be somewhat time-consuming. It is r
 ## Running a random forest with default parameters (4 points)
 
 i. (2 points) Train a random forest with default settings on `spam_train`. What value of `mtry` was used?
-```{r rf-fit, cache=TRUE}
+```{r rf-fit}
 set.seed(1) # for reproducibility (DO NOT CHANGE)
-rf_fit = randomForest(spam ~ ., data = spam_train)
+rf_fit = randomForest(factor(spam) ~ ., data = spam_train)
+mtry_value = floor(sqrt(ncol(spam_train)-1))
 ```
-**The value of 'mtry' is set to the number of columns divided by 3 rounded down. Since there are 57 columns, not including the spam column, 'mtry' is equal to 19**
+**The value of 'mtry' is set to the square root of the number of columns. Since there are 57 columns, not including the spam column, 'mtry' is equal to 7**
 
 ii. (2 points) Plot the OOB error as a function of the number of trees. Roughly for what number of trees does the OOB error stabilize?
 
@@ -330,7 +366,7 @@ tibble(oob_error = rf_fit$err.rate[,"OOB"],
        trees = 1:500) %>%
   ggplot(aes(x = trees, y = oob_error)) + geom_line() + theme_bw()
 ```
-**OOB error roughly stabilizes at 300 trees**
+**OOB error roughly stabilizes at 200 trees in \@ref(fig:OOB-error)**
 
 ## Computational cost of random forests (7 points)
 
@@ -342,14 +378,16 @@ Recall that the purity-based variable importance is calculated automatically but
 
 i. (1 point) How long does it take to train the random forest with default parameter settings, with `importance = FALSE`? You can use the command `system.time(randomForest(...))`; see `?system.time` for more details.
 
-```{r time-importance-false, cache=TRUE}
-system.time(randomForest(spam ~ ., data = spam_train))
+```{r time-importance-false}
+imp_false = system.time(randomForest(factor(spam) ~ ., data = spam_train,
+                                     importance = FALSE)) 
 ```
 **It takes around 4 seconds to train the random forest with default parameter settings**
 
 ii. (1 point) How long does it take to train the random forest with default parameter settings except `importance = TRUE`? How many times faster is the computation when `importance = FALSE`? 
-```{r time-importance-true, cache=TRUE}
-time_import_true = system.time(randomForest(spam ~ ., data = spam_train, importance = TRUE))
+```{r time-importance-true}
+imp_true = system.time(randomForest(factor(spam) ~ ., data = spam_train, 
+                                    importance = TRUE)) 
 ```
 **It takes around 8 seconds to train the random forest when `importance = TRUE`, which is double the time it took when `importance = FALSE`. Thus, setting computation equal to FALSE is twice as fast as setting it equal to TRUE **
 
@@ -359,67 +397,75 @@ Another setting influencing the computational cost of running `randomForest` is 
 
 i. (3 points) Train five random forests, with `ntree = 100,200,300,400,500` (and `importance = FALSE`). Record the time it takes to train each one, and plot the time against `ntree`. You can programmatically extract the elapsed time by running `system.time(...)["elapsed"]`
 
-```{r ntree-time, cache=TRUE}
+```{r ntree-time, fig.width = 5, fig.height = 3, out.width = "80%", fig.cap = "Training time against Number of Trees", fig.align='center'}
 num_tree = c(100, 200, 300, 400, 500)
 times = c(0, 0, 0, 0, 0)
+#for loop that calculates and saves run time for dif number trees
 for(i in 1:5){
-  times[i] = system.time(randomForest(spam ~ ., data = spam_train, 
+  times[i] = system.time(randomForest(factor(spam) ~ ., data = spam_train, 
                                       ntree=num_tree[i]))["elapsed"]
 } 
-tibble('Number of Trees' = num_tree, 'Run Time' = times) %>%
-  kable(format = "latex", row.names = NA,
-       booktabs = TRUE, 
-       digits = 3, 
-       caption = "Elapsed Run Time by Number of Trees Trained On") %>%
- kable_styling(position = "center")
-
+#create tibble of num of trees and run time
+train_time = tibble(num_tree, times) 
+train_time %>% ggplot(aes(x= num_tree, y = times)) +
+  geom_line()+ theme_bw() + 
+  labs(x = "Number of Trees", y = "Run Time")
 ```
 
 ii. (2 points) What relationship between runtime and number of trees do you observe? Does it make sense in the context of the training algorithm for random forests? 
-**As the number of trees increases, the runtime increases. This makes sense because it is more computationally intensive to train on a greater number of trees**
+**As the number of trees increases, the runtime increases. This makes sense because it is more computationally intensive to train on a greater number of trees. This relationship appears to be approximately linear. This makes sense because it takes approxiamtely the same time to train each additional tree in a random forest.**
 
 ## Tuning the random forest (8 points)
 
 i. (2 points) Since tuning the random forest is somewhat time consuming, we want to be careful about tuning it smartly. To this end, does it make sense to tune the random forest with `importance = FALSE` or `importance = TRUE`? Based on OOB error plot from above, what would be a reasonable number of trees to grow without significantly compromising prediction accuracy? 
-**It makes sense to set `importance = FALSE` because doing so cuts the runtime in half. EXPLAIN WHY IT IS OKAY TO NOT HAVE THIS**
-**Based on the OOB error plot from above, it seeems reasonable to grow 300 trees because this is when OOB error starts to level off.**
+**It makes sense to set `importance = FALSE` because doing so cuts the runtime in half. Also, it is not necessary to calculated the OOB-based variable importance when we have already calculated the purity-based variable importance.**
+**Based on the OOB error plot from above, it seems reasonable to grow 200 trees because this is when OOB error starts to level off. However, for random forests we do not need to tune B. Instead, we simply need to choose a large enough number. I acknowledge that training on 500 trees will take more time, so I choose to go with 200 trees**
 
 ii. (2 points) About how many minutes would it take to train a random forest with 500 trees for every possible value of m? (For the purposes of this question, you may assume for the sake of simplicity that the choice of m does not impact the training time too much.) Suppose you only have enough patience to wait about 15 seconds to tune your random forest, and you use the reduced number of trees from part i. How many values of m can you afford to try? (The answer will vary based on your computer. Some students will find that there is time for only one or a few values; this is ok.)
 **Since there are 57 columns in the data (excluding spam), 'mtry' can range from 1 to 57. Thus, there are 57 possible values of m. To train on every value, it would take 57 x 4 seconds or 228 seconds, which is equal to around 4 minutes**
-**It takes around 2 seconds to train based on 500 trees. Therefore I can afford to try 7 values of m because 2*7 is equal to 14, which is under the 15 second limit.**
+**It takes around 1.5 seconds to train based on 200 trees. Therefore I can afford to try 10 values of m because 1.5*10 is equal to 15, which is under the 15 second limit.**
 
 iii. (2 points) Tune the random forest based on the choices in parts i and ii (if on your computer you cannot calculate at least five values of m in 15 seconds, please calculate five values of m, even though it will take longer than 15 seconds). Make a plot of OOB error versus m, and identify the best value of m. How does it compare to the default value of m? 
 
-```{r rf-fit-tuned, cache=TRUE}
-# might want to cache this chunk!
-mvalues = seq(1,7, by = 1)
+```{r rf-tune-m, fig.width = 5, fig.height = 3, out.width = "80%", fig.cap = "Out of Bag Error against the Number of Features at Each Split Point", fig.align='center'}
+#select 10 equally spaced values from 1 to 10
+mvalues = round(seq.int(1,57, length.out= 10))
 oob_errors = numeric(length(mvalues))
-ntree = 300
+ntree = 200             #number of trees to test on
 for(idx in 1:length(mvalues)){
+  set.seed(1)
   m = mvalues[idx]
-  rf_fit = randomForest(spam ~ ., mtry = m, data = spam_train)
+  rf_fit = randomForest(factor(spam) ~ ., mtry = m, data = spam_train)
   oob_errors[idx] = rf_fit$err.rate[ntree,"OOB"]
 }
 tibble(m = mvalues, oob_err = oob_errors) %>%
   ggplot(aes(x = m, y = oob_err)) + 
   geom_line() + geom_point() + 
   scale_x_continuous(breaks = mvalues) +
-  theme_bw()
+  theme_bw() + 
+  labs(x = "Number of Features at Each Split Point",
+       y = "Out of Bag Error")
 
-rf_fit_tuned  = randomForest(spam ~ ., ntree= 300, mtry = 3, data = spam_train)
+mtry_optimal = tibble(m = mvalues, oob_err = oob_errors) %>%
+  arrange(oob_errors) %>% select(m) %>%
+  head(1)
 ```
+**The best value of m according to \@ref(fig:rf-tune-m) is 7, which is equal to the default value of m.**
 
 iv. (2 points) Using the optimal value of m selected above, train a random forest on 500 trees just to make sure the OOB error has flattened out. Also switch to `importance = TRUE` so that we can better interpret the random forest ultimately used to make predictions. Plot the OOB error of this random forest as a function of the number of trees and comment on whether the error has flattened out.
 
-```{r r-fit-500, cache = TRUE}
+```{r r-fit-optimal, fig.width = 5, fig.height = 3, out.width = "80%", fig.cap = "Out of Bag Error against the Number of Trees", fig.align='center'}
 set.seed(1) # for reproducibility (DO NOT CHANGE)
-rf_fit_500 = randomForest(spam ~ ., ntree= 500, mtry = 3, data = spam_train, importance = TRUE)
-tibble(oob_error = rf_fit_500$err.rate[,"OOB"],
+rf_fit_tuned = randomForest(factor(spam) ~ ., ntree= 500, mtry = 7, data = spam_train, 
+                            importance = TRUE)
+tibble(oob_error = rf_fit_tuned$err.rate[,"OOB"],
        trees = 1:500) %>%
-  ggplot(aes(x = trees, y = oob_error)) + geom_line() + theme_bw()
+  ggplot(aes(x = trees, y = oob_error)) + geom_line() + theme_bw() +
+  labs(x = "Number of Features at Each Split Point",
+       y = "Out of Bag Error")
 ```
 
-**Error appears to have flattened out at 300 because this is point when OOB error reaches its minimum**
+**The out of bag error appears to have flattened out by the time 200 trees are trained, but trained on 500 trees just to make sure**
 
 ## Variable importance (6 points)
 
@@ -427,42 +473,140 @@ i. (2 points) Produce the variable importance plot for the random forest trained
 
 
 We can visualize these importances using the built-in function called `varImpPlot`:
-```{r var-imp-plot, fig.width = 5, fig.height = 3, out.width = "80%", fig.cap = "Variable importance plot for random forest model trained on the optimal value of m", fig.align='center'}
-varImpPlot(rf_fit_tuned)
+```{r var-imp-plot, fig.width = 12, fig.height = 7, fig.cap = "Variable importance plot for random forest model trained on the optimal value of m", fig.align='center'}
+varImpPlot(rf_fit_tuned, n.var= 10)
 ```
 
 
 ii. (4 points) In order, what are the top three features by each metric? How many features appear in both lists? Choose one of these top features and comment on why you might expect it to be predictive of spam, including whether you would expect an increased frequency of this feature to indicate a greater or lesser probability of spam. 
+**The top 3 features for the accuracy metric are: the exclamation mark, the word "remove", and the dollar sign. The top 3 features for the Gini index are: the exclamation mark, the dollar sign, and the word "remove" Both the exclamation mark and the dollar sign are present in both lists. I except as the number of dollar signsincreases, spam increases because people conducting phishing attacks often use many dollar sign to try and trick users. Also, many spam emails have to do with money.**
 
 # Boosting (12 points for correctness; 3 points for presentation)
 
 ## Model tuning (4 points)
 
 i. (2 points) Fit boosted tree models with interaction depths 1, 2, and 3. For each, use a shrinkage factor of 0.1, 1000 trees, and 5-fold cross-validation.
-```{r}
+```{r boost-fit}
 set.seed(1) # for reproducibility (DO NOT CHANGE)
-# TODO: Fit random forest with interaction depth 1
+#Fit random forest with interaction depth 1
+gbm_fit_1 = gbm(spam ~ .,
+              distribution = "bernoulli",
+              n.trees = 1000,
+              interaction.depth = 1,
+              shrinkage = 0.1,
+              cv.folds = 5,
+              data = spam_train)
 
 set.seed(1) # for reproducibility (DO NOT CHANGE)
-# TODO: Fit random forest with interaction depth 2
+#Fit random forest with interaction depth 2
+gbm_fit_2 = gbm(spam ~ .,
+              distribution = "bernoulli",
+              n.trees = 1000,
+              interaction.depth = 2,
+              shrinkage = 0.1,
+              cv.folds = 5,
+              data = spam_train)
 
 set.seed(1) # for reproducibility (DO NOT CHANGE)
-# TODO: Fit random forest with interaction depth 3
+#Fit random forest with interaction depth 3
+gbm_fit_3 = gbm(spam ~ .,
+              distribution = "bernoulli",
+              n.trees = 1000,
+              interaction.depth = 3,
+              shrinkage = 0.1,
+              cv.folds = 5,
+              data = spam_train)
 ```
 
 ii. (2 points) Plot the CV errors against the number of trees for each interaction depth. These three curves should be on the same plot with different colors. Also plot horizontal dashed lines at the minima of these three curves. What are the optimal interaction depth and number of trees?
+
+```{r CV-error-boosting, out.width = "80%", fig.cap = "CV error plot for boosted tree model with interaction depths of 1, 2, and 3", fig.align='center'}
+# extract CV errors
+ntrees = 1000
+cv_errors = bind_rows(
+  tibble(ntree = 1:ntrees, cv_err = gbm_fit_1$cv.error, depth = 1),
+  tibble(ntree = 1:ntrees, cv_err = gbm_fit_2$cv.error, depth = 2),
+  tibble(ntree = 1:ntrees, cv_err = gbm_fit_3$cv.error, depth = 3)
+)
+#calculate min cv_error and min number of trees
+best_tree = cv_errors %>% 
+  filter(cv_err == min(cv_err))
+  
+  
+# plot CV errors
+cv_errors %>%
+  ggplot(aes(x = ntree, y = cv_err, colour = factor(depth))) +
+  geom_line() + theme_bw() +
+  geom_hline(yintercept = best_tree$cv_err,
+             linetype = "dashed") +
+  labs(x = "Number of Trees", y = "Cross-Validated Error") +
+  scale_y_log10()
+```
+**The optimal interaction depth is 3 and the optimal number of trees is 485**
 
 ## Model interpretation (8 points)
 
 i. (4 points) Print the first ten rows of the relative influence table for the optimal boosting model found above (using kable). What are the top three features? To what extent do these align with the top three features of the random forest trained above? 
 
-ii. (4 points) Produce partial dependence plots for the top three features based on relative influence. Comment on the nature of the relationship with the response and whether it makes sense.
+```{r}
+gbm_fit_tuned = gbm_fit_3
+optimal_num_trees = gbm.perf(gbm_fit_3, plot.it = FALSE) 
+top_10_var = summary(gbm_fit_tuned, n.trees = optimal_num_trees, plotit = FALSE) %>% 
+  summarise("Variable"= var, "Relative Influence" = rel.inf) %>%
+  head(10)
+top_10_var_names = top_10_var %>% select(Variable) %>% pull()
 
-**`char_freq_exclamation_mark` and `char_freq_dollar_sign` exhibit increasing relationships with spam, which makes sense because exclamation marks and dollar signs are typically found in spam emails. The relationship between `word_freq_remove` and spam seems more complex, with intermediate word frequencies most associated with spam. It's not immediately clear what the connection is between the word "remove" and spam emails.**
+top_10_var %>%
+  kable(format = "latex", row.names = NA,
+       booktabs = TRUE, 
+       digits = 2, 
+       caption = "Relative Influence Table for Optimal Boosting Model") %>%
+  kable_styling(position = "center")
+```
+
+**The top 3 features are frequent exclamation marks, frequent dollars signs, and the word remove. These 3 features are the same as the top three feature importance selected by the Gini index in the random forest model.**
+
+ii. (4 points) Produce partial dependence plots for the top three features based on relative influence. Comment on the nature of the relationship with the response and whether it makes sense.
+```{r partial-dependence-boost, fig.width = 10, fig.height = 5, out.width = "100%", fig.cap = "Partial dependence plots for top three features based on relative influence for optimal boosting model", fig.align='center'}
+pdp_1 = plot(gbm_fit_tuned, i.var = top_10_var_names[1], n.trees = optimal_num_trees, 
+             type = "response")
+pdp_2 = plot(gbm_fit_tuned, i.var = top_10_var_names[2], n.trees = optimal_num_trees, 
+             type = "response")
+pdp_3 = plot(gbm_fit_tuned, i.var = top_10_var_names[3], n.trees = optimal_num_trees, 
+             type = "response")
+
+cowplot::plot_grid(pdp_1, pdp_2, pdp_3, nrow = 1)
+```
+
+**`char_freq_exclamation_mark` and `char_freq_dollar_sign` exhibit increasing relationships with spam, which makes sense because exclamation marks and dollar signs are typically found in spam emails to get the attention of the viewer. The relationship between `word_freq_remove` and spam seems more complex, with intermediate word frequencies most associated with spam. It's not immediately clear what the connection is between the word "remove" and spam emails because of decrese that is seen in the partial dependence plot.**
 
 # Test set evaluation and comparison (8 points for correctness; 2 points for presentation)
 
 i. (2 points) Compute the test misclassification errors of the tuned decision tree, random forest, and boosting classifiers, and print these using kable. Which method performs best?
+```{r prediction-errors}
+#Decision tree misclassification error
+dt_predictions  = predict(optimal_tree, newdata = spam_test, type = "class") 
+dt_error = mean(dt_predictions != spam_test$spam)
+
+#Random forest misclassification error
+rf_predictions  = predict(rf_fit_tuned, newdata = spam_test) 
+rf_error = mean(rf_predictions != spam_test$spam)
+
+#GBM misclassification error
+gbm_probabilities = predict(gbm_fit_tuned, n.trees = optimal_num_trees,
+                          type = "response", newdata = spam_test)
+gbm_predictions = as.numeric(gbm_probabilities > 0.5)
+gbm_error = mean(gbm_predictions != spam_test$spam)
+
+# print nice table
+tibble('Decision Tree' = dt_error, 'Random Forest' = rf_error, 
+       `Boosting Classifier` = gbm_error) %>%
+  kable(format = "latex", row.names = NA,
+       booktabs = TRUE, digits = 4,
+       caption = "Misclassification errors by method") %>%
+ kable_styling(position = "center")
+```
+**The random forest performs the best, but it only performs marginally better than the boosting classifier**
 
 ii. (3 points) We might want to see how the test misclassification errors of random forests and boosting vary with the number of trees. The following code chunk is provided to compute these; it assumes that the tuned random forest and boosting classifiers are named `rf_fit_tuned` and `gbm_fit_tuned`, respectively.
 ```{r}
@@ -491,4 +635,20 @@ gbm_test_err = apply(
 
 Produce a plot showing the misclassification errors of the random forest and boosting classifiers as a function of the number of trees, as well as a horizontal line at the misclassification error of the optimal pruned tree. Put the y axis on a log scale for clearer visualization.
 
+```{r misclass-rf-boost, out.width = "80%", fig.cap = "Plot showing the misclassification errors of the random forest and boosting classifiers as a function of the number of trees, as well as a horizontal line at the misclassification error of the optimal pruned tree", fig.align='center'}
+ntrees = 500
+
+cv_errors = bind_rows(
+  tibble(ntree = 1:ntrees, cv_err = rf_test_err, type = "rf"),
+  tibble(ntree = 1:ntrees, cv_err = gbm_test_err, type = "boosting"),
+)
+ 
+cv_errors %>%
+  ggplot(aes(x = ntree, y = cv_err, color = type)) +
+  scale_y_log10() +
+  geom_hline(yintercept = dt_error, linetype = "dashed") + 
+  geom_line() + theme_bw()
+```
+
 iii. (3 points) Between random forests and boosting, which method's misclassification error drops more quickly as a function of the number of trees? Why does this make sense?
+**Between random forest and boosting, random forest's misclassification error drops faster as a function of the number of trees. This happens because random forests grow deep decision trees in parallel while boosting grows shallow decision trees sequentially.**
